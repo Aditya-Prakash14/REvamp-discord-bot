@@ -54,7 +54,7 @@ class EnhancedRevampBot(commands.Bot):
         )
         
         self.config = config
-        self.start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.start_time = datetime.datetime.utcnow()
         
         # Setup logging
         self.setup_logging()
@@ -135,9 +135,6 @@ class EnhancedRevampBot(commands.Bot):
         """Setup hook called when bot starts"""
         self.session = aiohttp.ClientSession()
         
-        # Add CoreCommands cog
-        await self.add_cog(CoreCommands(self))
-        
         # Load all cogs
         await self.load_cogs()
         
@@ -150,10 +147,10 @@ class EnhancedRevampBot(commands.Bot):
         """Load all bot cogs/extensions"""
         cogs = [
             'cogs.moderation',
-            # 'cogs.leveling',
-            # 'cogs.events',
-            # 'cogs.community',
-            # 'cogs.utility'
+            'cogs.leveling',
+            'cogs.events',
+            'cogs.community',
+            'cogs.utility'
         ]
         
         for cog in cogs:
@@ -229,9 +226,6 @@ class EnhancedRevampBot(commands.Bot):
     @tasks.loop(hours=24)
     async def periodic_tasks(self):
         """Periodic maintenance and automated tasks"""
-        if not self.is_ready():
-            return
-            
         self.logger.info("Running periodic maintenance tasks")
         
         # Update bot presence with current stats
@@ -249,7 +243,7 @@ class EnhancedRevampBot(commands.Bot):
         """Clean up old database entries"""
         try:
             # Remove RSVP entries older than 30 days
-            cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
+            cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=30)
             self.db.execute(
                 'DELETE FROM event_rsvp WHERE created_at < ?',
                 (cutoff_date,)
@@ -321,9 +315,9 @@ class CoreCommands(commands.Cog):
         await ctx.send(embed=embed)
         
     @commands.command(name='info')
-    async def info_command(self, ctx):
+    async def bot_info(self, ctx):
         """Display bot information"""
-        uptime = datetime.datetime.now(datetime.timezone.utc) - self.bot.start_time
+        uptime = datetime.datetime.utcnow() - self.bot.start_time
         
         embed = discord.Embed(
             title="🤖 RevampBot Information",
@@ -338,127 +332,127 @@ class CoreCommands(commands.Cog):
         
         await ctx.send(embed=embed)
 
-    # Safe setup command (replaces destructive server wipe)
-    @commands.command(name='setup')
-    @commands.has_permissions(administrator=True)
-    async def setup_server(self, ctx):
-        """Safe server setup wizard"""
-        embed = discord.Embed(
-            title="🔧 Server Setup Wizard",
-            description="This will help you configure RevampBot for your server.",
-            color=discord.Color.orange()
-        )
-        embed.add_field(
-            name="⚠️ Important",
-            value="This setup will create channels and roles. Make sure you have backups if needed.",
-            inline=False
-        )
-        embed.add_field(
-            name="Options",
-            value=(
-                "React with ✅ to proceed with setup\n"
-                "React with ❌ to cancel"
-            ),
-            inline=False
-        )
+# Safe setup command (replaces destructive server wipe)
+@commands.command(name='setup')
+@commands.has_permissions(administrator=True)
+async def setup_server(self, ctx):
+    """Safe server setup wizard"""
+    embed = discord.Embed(
+        title="🔧 Server Setup Wizard",
+        description="This will help you configure RevampBot for your server.",
+        color=discord.Color.orange()
+    )
+    embed.add_field(
+        name="⚠️ Important",
+        value="This setup will create channels and roles. Make sure you have backups if needed.",
+        inline=False
+    )
+    embed.add_field(
+        name="Options",
+        value=(
+            "React with ✅ to proceed with setup\n"
+            "React with ❌ to cancel"
+        ),
+        inline=False
+    )
+    
+    msg = await ctx.send(embed=embed)
+    await msg.add_reaction('✅')
+    await msg.add_reaction('❌')
+    
+    def check(reaction, user):
+        return user == ctx.author and str(reaction.emoji) in ['✅', '❌']
+    
+    try:
+        reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
         
-        msg = await ctx.send(embed=embed)
-        await msg.add_reaction('✅')
-        await msg.add_reaction('❌')
-        
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ['✅', '❌']
-        
-        try:
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+        if str(reaction.emoji) == '✅':
+            await self.perform_safe_setup(ctx)
+        else:
+            await ctx.send("Setup cancelled.")
             
-            if str(reaction.emoji) == '✅':
-                await self.perform_safe_setup(ctx)
-            else:
-                await ctx.send("Setup cancelled.")
-                
-        except asyncio.TimeoutError:
-            await ctx.send("Setup timed out.")
+    except asyncio.TimeoutError:
+        await ctx.send("Setup timed out.")
 
-    async def perform_safe_setup(self, ctx):
-        """Perform safe server setup without destructive actions"""
-        guild = ctx.guild
+async def perform_safe_setup(self, ctx):
+    """Perform safe server setup without destructive actions"""
+    guild = ctx.guild
+    
+    try:
+        # Create categories and channels only if they don't exist
+        setup_log = []
         
-        try:
-            # Create categories and channels only if they don't exist
-            setup_log = []
+        # Server structure (same as original but safe)
+        server_structure = [
+            ("👋 Welcome", [
+                ("👋・welcome", "text"),
+                ("📜・rules", "text"),
+                ("😎・introductions", "text"),
+                ("🌟・role-selection", "text")
+            ]),
+            ("📣 Announcements", [
+                ("📣・announcements", "text"),
+                ("🎫・events", "text")
+            ]),
+            ("🏠 Community", [
+                ("🏠・general", "text"),
+                ("🥤・lounge", "text"),
+                ("🏆・showcase", "text"),
+                ("🤝・collaborations", "text")
+            ]),
+            ("💻 Tech Hub", [
+                ("💻・coding-help", "text"),
+                ("📚・resources", "text"),
+                ("🌐・web-dev", "text"),
+                ("🧠・ml-ai", "text")
+            ])
+        ]
+        
+        for category_name, channels in server_structure:
+            # Check if category exists
+            category = discord.utils.get(guild.categories, name=category_name)
+            if not category:
+                category = await guild.create_category(category_name)
+                setup_log.append(f"✅ Created category: {category_name}")
             
-            # Server structure (same as original but safe)
-            server_structure = [
-                ("👋 Welcome", [
-                    ("👋・welcome", "text"),
-                    ("📜・rules", "text"),
-                    ("😎・introductions", "text"),
-                    ("🌟・role-selection", "text")
-                ]),
-                ("📣 Announcements", [
-                    ("📣・announcements", "text"),
-                    ("🎫・events", "text")
-                ]),
-                ("🏠 Community", [
-                    ("🏠・general", "text"),
-                    ("🥤・lounge", "text"),
-                    ("🏆・showcase", "text"),
-                    ("🤝・collaborations", "text")
-                ]),
-                ("💻 Tech Hub", [
-                    ("💻・coding-help", "text"),
-                    ("📚・resources", "text"),
-                    ("🌐・web-dev", "text"),
-                    ("🧠・ml-ai", "text")
-                ])
-            ]
-            
-            for category_name, channels in server_structure:
-                # Check if category exists
-                category = discord.utils.get(guild.categories, name=category_name)
-                if not category:
-                    category = await guild.create_category(category_name)
-                    setup_log.append(f"✅ Created category: {category_name}")
+            for channel_name, channel_type in channels:
+                if channel_type == "text":
+                    if not discord.utils.get(guild.text_channels, name=channel_name):
+                        await guild.create_text_channel(channel_name, category=category)
+                        setup_log.append(f"✅ Created text channel: {channel_name}")
                 
-                for channel_name, channel_type in channels:
-                    if channel_type == "text":
-                        if not discord.utils.get(guild.text_channels, name=channel_name):
-                            await guild.create_text_channel(channel_name, category=category)
-                            setup_log.append(f"✅ Created text channel: {channel_name}")
-                    
-            # Create roles safely
-            role_configs = [
-                ("Member", discord.Color.blue()),
-                ("Web Dev", discord.Color.green()),
-                ("ML/AI Enthusiast", discord.Color.purple()),
-                ("Community Helper", discord.Color.orange())
-            ]
-            
-            for role_name, color in role_configs:
-                if not discord.utils.get(guild.roles, name=role_name):
-                    await guild.create_role(name=role_name, color=color)
-                    setup_log.append(f"✅ Created role: {role_name}")
-            
-            # Send setup completion message
-            embed = discord.Embed(
-                title="🎉 Setup Completed!",
-                description="Your server has been configured successfully.",
-                color=discord.Color.green()
+        # Create roles safely
+        role_configs = [
+            ("Member", discord.Color.blue()),
+            ("Web Dev", discord.Color.green()),
+            ("ML/AI Enthusiast", discord.Color.purple()),
+            ("Community Helper", discord.Color.orange())
+        ]
+        
+        for role_name, color in role_configs:
+            if not discord.utils.get(guild.roles, name=role_name):
+                await guild.create_role(name=role_name, color=color)
+                setup_log.append(f"✅ Created role: {role_name}")
+        
+        # Send setup completion message
+        embed = discord.Embed(
+            title="🎉 Setup Completed!",
+            description="Your server has been configured successfully.",
+            color=discord.Color.green()
+        )
+        
+        if setup_log:
+            embed.add_field(
+                name="Changes Made",
+                value='\n'.join(setup_log[:10]),  # Limit to first 10 entries
+                inline=False
             )
-            
-            if setup_log:
-                embed.add_field(
-                    name="Changes Made",
-                    value='\n'.join(setup_log[:10]),  # Limit to first 10 entries
-                    inline=False
-                )
-            
-            await ctx.send(embed=embed)
-            
-        except Exception as e:
-            await ctx.send(f"❌ Setup failed: {str(e)}")
-            self.bot.logger.error(f"Setup failed for guild {guild.id}: {e}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"❌ Setup failed: {str(e)}")
+        self.bot.logger.error(f"Setup failed for guild {guild.id}: {e}")
 
 def main():
     """Main function to run the bot"""
