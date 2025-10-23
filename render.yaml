@@ -1,7 +1,9 @@
 services:
-  - type: web
+  - type: worker
     name: revampbot
     runtime: python
+    region: oregon
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python enhanced-revampbot.py
     envVars:
@@ -13,5 +15,3 @@ services:
         value: revampbot.db
       - key: LOG_LEVEL
         value: INFO
-      - key: PYTHON_VERSION
-        value: "3.12.11"
