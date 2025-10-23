@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: revampbot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python enhanced-revampbot.py
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: BOT_PREFIX
+        value: "!"
+      - key: DATABASE_PATH
+        value: revampbot.db
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHON_VERSION
+        value: "3.12.11"
